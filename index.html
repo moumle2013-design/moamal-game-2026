@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لعبة مؤمل</title>
+
+<style>
+* {
+  box-sizing: border-box;
+  user-select: none;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #111;
+  font-family: Arial;
+}
+
+#game {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(#65c9ff 0%, #b9edff 55%, #62a832 56%, #39751d 100%);
+}
+
+/* الشمس */
+#sun {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #ffd83d;
+  top: 40px;
+  left: 30px;
+  box-shadow: 0 0 40px #fff28a;
+}
+
+/* الأرض */
+#ground {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 35%;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      #3c8125,
+      #3c8125 12px,
+      #34731f 12px,
+      #34731f 24px
+    );
+  border-top: 5px solid #275718;
+}
+
+/* الشخصية */
+#player {
+  position: absolute;
+  width: 48px;
+  height: 70px;
+  bottom: 35%;
+  left: 80px;
+  transition: left 0.08s;
+  z-index: 10;
+}
+
+/* رأس */
+#head {
+  width: 38px;
+  height: 38px;
+  background: #d99a70;
+  border-radius: 50%;
+  margin: auto;
+  border: 2px solid #9d6849;
+}
+
+/* الجسم */
+#body {
+  width: 30px;
+  height: 35px;
+  background: #1769aa;
+  margin: -2px auto 0;
+  border-radius: 8px 8px 4px 4px;
+}
+
+/* العقبات */
+.obstacle {
+  position: absolute;
+  width: 42px;
+  height: 42px;
+  background: #555;
+  border-radius: 8px;
+  bottom: 35%;
+  right: -60px;
+  box-shadow: inset -6px -6px 0 #333;
+}
+
+/* المعلومات */
+#hud {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  color: white;
+  background: rgba(0,0,0,.45);
+  padding: 10px 15px;
+  border-radius: 12px;
+  font-size: 18px;
+  z-index: 20;
+}
+
+/* أزرار التحكم */
+.controls {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 30;
+}
+
+.controls button {
+  width: 75px;
+  height: 65px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(0,0,0,.55);
+  color: white;
+  font-size: 30px;
+}
+
+#jump {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 65px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(20,90,180,.75);
+  color: white;
+  font-size: 25px;
+  z-index: 30;
+}
+
+#message {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  background: rgba(0,0,0,.8);
+  color: white;
+  padding: 25px;
+  border-radius: 20px;
+  text-align: center;
+  display: none;
+  z-index: 100;
+}
+
+#message button {
+  padding: 12px 25px;
+  margin-top: 15px;
+  border: none;
+  border-radius: 10px;
+  font-size: 18px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="game">
+
+  <div id="sun"></div>
+  <div id="ground"></div>
+
+  <div id="hud">
+    ⭐ النقاط: <span id="score">0</span>
+    <br>
+    ❤️ المحاولات: <span id="lives">3</span>
+  </div>
+
+  <div id="player">
+    <div id="head"></div>
+    <div id="body"></div>
+  </div>
+
+  <div class="controls">
+    <button id="left">⬅️</button>
+    <button id="right">➡️</button>
+  </div>
+
+  <button id="jump">⬆️</button>
+
+  <div id="message">
+    <h2>💥 انتهت اللعبة</h2>
+    <p>نتيجتك: <span id="finalScore">0</span></p>
+    <button onclick="location.reload()">🔄 إعادة اللعب</button>
+  </div>
+
+</div>
+
+<script>
+
+const player = document.getElementById("player");
+const scoreText = document.getElementById("score");
+const livesText = document.getElementById("lives");
+const message = document.getElementById("message");
+const finalScore = document.getElementById("finalScore");
+
+let playerX = 80;
+let jumping = false;
+let score = 0;
+let lives = 3;
+let speed = 5;
+let gameOver = false;
+
+/* الحركة */
+
+function moveLeft() {
+  if (gameOver) return;
+
+  playerX -= 12;
+
+  if (playerX < 0)
+    playerX = 0;
+
+  player.style.left = playerX + "px";
+}
+
+function moveRight() {
+  if (gameOver) return;
+
+  playerX += 12;
+
+  if (playerX > window.innerWidth - 60)
+    playerX = window.innerWidth - 60;
+
+  player.style.left = playerX + "px";
+}
+
+/* القفز */
+
+function jump() {
+
+  if (jumping || gameOver)
+    return;
+
+  jumping = true;
+
+  let start = 0;
+
+  const jumpUp = setInterval(() => {
+
+    start += 8;
+
+    player.style.bottom =
+      `calc(35% + ${start}px)`;
+
+    if (start >= 120) {
+
+      clearInterval(jumpUp);
+
+      const jumpDown = setInterval(() => {
+
+        start -= 8;
+
+        player.style.bottom =
+          `calc(35% + ${start}px)`;
+
+        if (start <= 0) {
+
+          clearInterval(jumpDown);
+
+          player.style.bottom = "35%";
+          jumping = false;
+        }
+
+      }, 25);
+
+    }
+
+  }, 25);
+}
+
+/* الأزرار */
+
+document.getElementById("left")
+.addEventListener("touchstart", e => {
+  e.preventDefault();
+  moveLeft();
+});
+
+document.getElementById("right")
+.addEventListener("touchstart", e => {
+  e.preventDefault();
+  moveRight();
+});
+
+document.getElementById("jump")
+.addEventListener("touchstart", e => {
+  e.preventDefault();
+  jump();
+});
+
+/* دعم الكمبيوتر */
+
+document.addEventListener("keydown", e => {
+
+  if (e.key === "ArrowLeft")
+    moveLeft();
+
+  if (e.key === "ArrowRight")
+    moveRight();
+
+  if (e.key === "ArrowUp" || e.key === " ")
+    jump();
+
+});
+
+/* إنشاء العقبات */
+
+function createObstacle() {
+
+  if (gameOver) return;
+
+  const obstacle = document.createElement("div");
+
+  obstacle.className = "obstacle";
+
+  obstacle.style.right = "-60px";
+
+  document.getElementById("game")
+    .appendChild(obstacle);
+
+  let x = -60;
+
+  const move = setInterval(() => {
+
+    if (gameOver) {
+      clearInterval(move);
+      obstacle.remove();
+      return;
+    }
+
+    x += speed;
+
+    obstacle.style.right = x + "px";
+
+    const p = player.getBoundingClientRect();
+    const o = obstacle.getBoundingClientRect();
+
+    /* اصطدام */
+
+    if (
+      p.left < o.right &&
+      p.right > o.left &&
+      p.top < o.bottom &&
+      p.bottom > o.top
+    ) {
+
+      clearInterval(move);
+      obstacle.remove();
+
+      lives--;
+
+      livesText.textContent = lives;
+
+      if (lives <= 0) {
+        endGame();
+      }
+
+      return;
+    }
+
+    /* تجاوز العقبة */
+
+    if (x > window.innerWidth + 100) {
+
+      clearInterval(move);
+      obstacle.remove();
+
+      score++;
+
+      scoreText.textContent = score;
+
+      if (score % 5 === 0) {
+        speed += 1;
+      }
+    }
+
+  }, 25);
+}
+
+/* ظهور العقبات */
+
+setInterval(() => {
+
+  if (!gameOver)
+    createObstacle();
+
+}, 1800);
+
+/* نهاية اللعبة */
+
+function endGame() {
+
+  gameOver = true;
+
+  finalScore.textContent = score;
+
+  message.style.display = "block";
+}
+
+</script>
+
+</body>
+  </html>
